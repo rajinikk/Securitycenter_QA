@@ -1,0 +1,15 @@
+[
+  "test_login.py::LoginTests::test_repos",
+  "test_login.py::LoginTests::test_validLogin",
+  "test_login.py::Login::test_validLogin",
+  "test_login.py::Login::test_add_repo",
+  "test_login.py::Login::test_add_repoB",
+  "test_login.py::Login::test_validLoginA",
+  "test_login.py::Login::test_method",
+  "test_login.py::Login::test_methoda",
+  "test_login.py::Login::test_methodb",
+  "test_login.py::Login::test_methodC",
+  "test_login.py::Login::test_methodc",
+  "test_login.py::Login::test_methodd",
+  "test_login.py::Login::test_methode"
+]

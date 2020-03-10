@@ -1,0 +1,17 @@
+{
+  "test/test_add_activescan/test_active_scan.py::ActiveScan::testa_add_logina_1": true,
+  "test/test_add_activescan/test_active_scan.py::ActiveScan::testb_active_scan_1": true,
+  "test/test_add_activescan/test_active_scan.py::OrgUsers::testb_active_scan": true,
+  "test/test_add_activescan/test_active_scan.py::OrgUsers::testb_active_scan_2": true,
+  "test/test_add_activescan/test_active_scan.py::OrgUsers::testb_active_scan_3": true,
+  "test/test_add_ldapServers/test_add_ldapServers.py::LadapServer::testa_method": true,
+  "test/test_add_ldapServers/test_add_ldapServers.py::LadapServer::testb_add_ldps_1": true,
+  "test/test_add_scanzone/test_scan_zone.py::Login::testc_method_1": true,
+  "test/test_analysis/test_analysis_component.py::OrgUsers::testd_tiket": true,
+  "test/test_analysis/test_analysis_component.py::OrgUsers::testd_tiket_1": true,
+  "test/test_scanning/test_scanning.py::Test::testi_scalpauiditing_1": true,
+  "test/test_scanning/test_scanning.py::TestScann::testc_add_windows_password_1": true,
+  "test/test_scanning/test_scanning.py::test::testd_scanning_method_1": true,
+  "test/testf_add_activescan/test_active_scan.py::ActiveScan::testa_add_logina_1": true,
+  "test/testf_add_activescan/test_active_scan.py::ActiveScan::testb_active_scan_1": true
+}

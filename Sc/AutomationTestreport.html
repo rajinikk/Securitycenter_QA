@@ -1,0 +1,916 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8"/>
+    <title>Test Report</title>
+    <link href="assets/style.css" rel="stylesheet" type="text/css"/></head>
+  <body onLoad="init()">
+    <script>/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this file,
+ * You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+
+function toArray(iter) {
+    if (iter === null) {
+        return null;
+    }
+    return Array.prototype.slice.call(iter);
+}
+
+function find(selector, elem) {
+    if (!elem) {
+        elem = document;
+    }
+    return elem.querySelector(selector);
+}
+
+function find_all(selector, elem) {
+    if (!elem) {
+        elem = document;
+    }
+    return toArray(elem.querySelectorAll(selector));
+}
+
+function sort_column(elem) {
+    toggle_sort_states(elem);
+    var colIndex = toArray(elem.parentNode.childNodes).indexOf(elem);
+    var key;
+    if (elem.classList.contains('numeric')) {
+        key = key_num;
+    } else if (elem.classList.contains('result')) {
+        key = key_result;
+    } else {
+        key = key_alpha;
+    }
+    sort_table(elem, key(colIndex));
+}
+
+function show_all_extras() {
+    find_all('.col-result').forEach(show_extras);
+}
+
+function hide_all_extras() {
+    find_all('.col-result').forEach(hide_extras);
+}
+
+function show_extras(colresult_elem) {
+    var extras = colresult_elem.parentNode.nextElementSibling;
+    var expandcollapse = colresult_elem.firstElementChild;
+    extras.classList.remove("collapsed");
+    expandcollapse.classList.remove("expander");
+    expandcollapse.classList.add("collapser");
+}
+
+function hide_extras(colresult_elem) {
+    var extras = colresult_elem.parentNode.nextElementSibling;
+    var expandcollapse = colresult_elem.firstElementChild;
+    extras.classList.add("collapsed");
+    expandcollapse.classList.remove("collapser");
+    expandcollapse.classList.add("expander");
+}
+
+function show_filters() {
+    var filter_items = document.getElementsByClassName('filter');
+    for (var i = 0; i < filter_items.length; i++)
+        filter_items[i].hidden = false;
+}
+
+function add_collapse() {
+    // Add links for show/hide all
+    var resulttable = find('table#results-table');
+    var showhideall = document.createElement("p");
+    showhideall.innerHTML = '<a href="javascript:show_all_extras()">Show all details</a> / ' +
+                            '<a href="javascript:hide_all_extras()">Hide all details</a>';
+    resulttable.parentElement.insertBefore(showhideall, resulttable);
+
+    // Add show/hide link to each result
+    find_all('.col-result').forEach(function(elem) {
+        var collapsed = get_query_parameter('collapsed') || 'Passed';
+        var extras = elem.parentNode.nextElementSibling;
+        var expandcollapse = document.createElement("span");
+        if (collapsed.includes(elem.innerHTML)) {
+            extras.classList.add("collapsed");
+            expandcollapse.classList.add("expander");
+        } else {
+            expandcollapse.classList.add("collapser");
+        }
+        elem.appendChild(expandcollapse);
+
+        elem.addEventListener("click", function(event) {
+            if (event.currentTarget.parentNode.nextElementSibling.classList.contains("collapsed")) {
+                show_extras(event.currentTarget);
+            } else {
+                hide_extras(event.currentTarget);
+            }
+        });
+    })
+}
+
+function get_query_parameter(name) {
+    var match = RegExp('[?&]' + name + '=([^&]*)').exec(window.location.search);
+    return match && decodeURIComponent(match[1].replace(/\+/g, ' '));
+}
+
+function init () {
+    reset_sort_headers();
+
+    add_collapse();
+
+    show_filters();
+
+    sort_column(find('.initial-sort'));
+
+    find_all('.sortable').forEach(function(elem) {
+        elem.addEventListener("click",
+                              function(event) {
+                                  sort_column(elem);
+                              }, false)
+    });
+
+};
+
+function sort_table(clicked, key_func) {
+    var rows = find_all('.results-table-row');
+    var reversed = !clicked.classList.contains('asc');
+    var sorted_rows = sort(rows, key_func, reversed);
+    /* Whole table is removed here because browsers acts much slower
+     * when appending existing elements.
+     */
+    var thead = document.getElementById("results-table-head");
+    document.getElementById('results-table').remove();
+    var parent = document.createElement("table");
+    parent.id = "results-table";
+    parent.appendChild(thead);
+    sorted_rows.forEach(function(elem) {
+        parent.appendChild(elem);
+    });
+    document.getElementsByTagName("BODY")[0].appendChild(parent);
+}
+
+function sort(items, key_func, reversed) {
+    var sort_array = items.map(function(item, i) {
+        return [key_func(item), i];
+    });
+
+    sort_array.sort(function(a, b) {
+        var key_a = a[0];
+        var key_b = b[0];
+
+        if (key_a == key_b) return 0;
+
+        if (reversed) {
+            return (key_a < key_b ? 1 : -1);
+        } else {
+            return (key_a > key_b ? 1 : -1);
+        }
+    });
+
+    return sort_array.map(function(item) {
+        var index = item[1];
+        return items[index];
+    });
+}
+
+function key_alpha(col_index) {
+    return function(elem) {
+        return elem.childNodes[1].childNodes[col_index].firstChild.data.toLowerCase();
+    };
+}
+
+function key_num(col_index) {
+    return function(elem) {
+        return parseFloat(elem.childNodes[1].childNodes[col_index].firstChild.data);
+    };
+}
+
+function key_result(col_index) {
+    return function(elem) {
+        var strings = ['Error', 'Failed', 'Rerun', 'XFailed', 'XPassed',
+                       'Skipped', 'Passed'];
+        return strings.indexOf(elem.childNodes[1].childNodes[col_index].firstChild.data);
+    };
+}
+
+function reset_sort_headers() {
+    find_all('.sort-icon').forEach(function(elem) {
+        elem.parentNode.removeChild(elem);
+    });
+    find_all('.sortable').forEach(function(elem) {
+        var icon = document.createElement("div");
+        icon.className = "sort-icon";
+        icon.textContent = "vvv";
+        elem.insertBefore(icon, elem.firstChild);
+        elem.classList.remove("desc", "active");
+        elem.classList.add("asc", "inactive");
+    });
+}
+
+function toggle_sort_states(elem) {
+    //if active, toggle between asc and desc
+    if (elem.classList.contains('active')) {
+        elem.classList.toggle('asc');
+        elem.classList.toggle('desc');
+    }
+
+    //if inactive, reset all other functions and add ascending active
+    if (elem.classList.contains('inactive')) {
+        reset_sort_headers();
+        elem.classList.remove('inactive');
+        elem.classList.add('active');
+    }
+}
+
+function is_all_rows_hidden(value) {
+  return value.hidden == false;
+}
+
+function filter_table(elem) {
+    var outcome_att = "data-test-result";
+    var outcome = elem.getAttribute(outcome_att);
+    class_outcome = outcome + " results-table-row";
+    var outcome_rows = document.getElementsByClassName(class_outcome);
+
+    for(var i = 0; i < outcome_rows.length; i++){
+        outcome_rows[i].hidden = !elem.checked;
+    }
+
+    var rows = find_all('.results-table-row').filter(is_all_rows_hidden);
+    var all_rows_hidden = rows.length == 0 ? true : false;
+    var not_found_message = document.getElementById("not-found-message");
+    not_found_message.hidden = !all_rows_hidden;
+}
+</script>
+    <h1>AutomationTestreport.html</h1>
+    <p>Report generated on 04-Feb-2020 at 15:42:27 by <a href="https://pypi.python.org/pypi/pytest-html">pytest-html</a> v2.0.1</p>
+    <h2>Environment</h2>
+    <table id="environment">
+      <tr>
+        <td>JAVA_HOME</td>
+        <td>/home/delixus/.sdkman/candidates/java/current</td></tr>
+      <tr>
+        <td>Packages</td>
+        <td>{&apos;pytest&apos;: &apos;5.3.2&apos;, &apos;py&apos;: &apos;1.8.1&apos;, &apos;pluggy&apos;: &apos;0.13.1&apos;}</td></tr>
+      <tr>
+        <td>Platform</td>
+        <td>Linux-5.3.0-28-generic-x86_64-with-Ubuntu-18.04-bionic</td></tr>
+      <tr>
+        <td>Plugins</td>
+        <td>{&apos;html&apos;: &apos;2.0.1&apos;, &apos;metadata&apos;: &apos;1.8.0&apos;}</td></tr>
+      <tr>
+        <td>Python</td>
+        <td>3.6.9</td></tr></table>
+    <h2>Summary</h2>
+    <p>26 tests ran in 405.14 seconds. </p>
+    <p class="filter" hidden="true">(Un)check the boxes to filter the results.</p><input checked="true" class="filter" data-test-result="passed" hidden="true" name="filter_checkbox" onChange="filter_table(this)" type="checkbox"/><span class="passed">26 passed</span>, <input checked="true" class="filter" data-test-result="skipped" disabled="true" hidden="true" name="filter_checkbox" onChange="filter_table(this)" type="checkbox"/><span class="skipped">0 skipped</span>, <input checked="true" class="filter" data-test-result="failed" disabled="true" hidden="true" name="filter_checkbox" onChange="filter_table(this)" type="checkbox"/><span class="failed">0 failed</span>, <input checked="true" class="filter" data-test-result="error" disabled="true" hidden="true" name="filter_checkbox" onChange="filter_table(this)" type="checkbox"/><span class="error">0 errors</span>, <input checked="true" class="filter" data-test-result="xfailed" disabled="true" hidden="true" name="filter_checkbox" onChange="filter_table(this)" type="checkbox"/><span class="xfailed">0 expected failures</span>, <input checked="true" class="filter" data-test-result="xpassed" disabled="true" hidden="true" name="filter_checkbox" onChange="filter_table(this)" type="checkbox"/><span class="xpassed">0 unexpected passes</span>
+    <h2>Results</h2>
+    <table id="results-table">
+      <thead id="results-table-head">
+        <tr>
+          <th class="sortable result initial-sort" col="result">Result</th>
+          <th class="sortable" col="name">Test</th>
+          <th class="sortable numeric" col="duration">Duration</th>
+          <th>Links</th></tr>
+        <tr hidden="true" id="not-found-message">
+          <th colspan="4">No results found. Try to check the filters</th></tr></thead>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test/test_add_ldapServers/test_add_ldapServers.py::Login::testa_method</td>
+          <td class="col-duration">8.12</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> -----------------------------Captured stdout setup------------------------------ <br/>Running one time setUp
+running test on chrome file
+<br/> -----------------------------Captured stderr setup------------------------------ <br/>[INFO]: testing this file
+[INFO]: testing this file
+[INFO]: testing this file
+[INFO]: started loggin 
+[INFO]: started loggin 
+[INFO]: started loggin 
+<br/> -------------------------------Captured log setup------------------------------- <br/>[32mINFO    [0m root:test_add_ldapServers.py:27 testing this file
+[32mINFO    [0m root:test_add_ldapServers.py:28 started loggin<br/> ------------------------------Captured stdout call------------------------------ <br/>element&lt;selenium.webdriver.remote.webelement.WebElement (session=&quot;df3a9ca6d8fee64d61f570c6d487d8ce&quot;, element=&quot;0.6173312553820227-4&quot;)&gt; present after selecting
+Clicked on element with locator: //input[contains(@value,&#x27;Sign In&#x27;)] locatorType: xpath
+<br/> ------------------------------Captured stderr call------------------------------ <br/>[INFO]: Entering data for username and password for login
+[INFO]: Entering data for username and password for login
+[INFO]: Entering data for username and password for login
+[INFO]: Logging is successfull
+[INFO]: Logging is successfull
+[INFO]: Logging is successfull
+<br/> -------------------------------Captured log call-------------------------------- <br/>[32mINFO    [0m root:test_add_ldapServers.py:37 Entering data for username and password for login
+[32mINFO    [0m root:test_add_ldapServers.py:39 Logging is successfull<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test/test_add_ldapServers/test_add_ldapServers.py::Login::testb_add_ldps_1</td>
+          <td class="col-duration">13.29</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> -----------------------------Captured stderr setup------------------------------ <br/>[INFO]: testing this file
+[INFO]: testing this file
+[INFO]: testing this file
+[INFO]: started loggin 
+[INFO]: started loggin 
+[INFO]: started loggin 
+<br/> -------------------------------Captured log setup------------------------------- <br/>[32mINFO    [0m root:test_add_ldapServers.py:27 testing this file
+[32mINFO    [0m root:test_add_ldapServers.py:28 started loggin<br/> ------------------------------Captured stdout call------------------------------ <br/>element&lt;selenium.webdriver.remote.webelement.WebElement (session=&quot;df3a9ca6d8fee64d61f570c6d487d8ce&quot;, element=&quot;0.6173312553820227-6&quot;)&gt; present after selecting
+Clicked on element with locator: //a[@class=&#x27; dropdown-toggle&#x27;] locatorType: xpath
+element&lt;selenium.webdriver.remote.webelement.WebElement (session=&quot;df3a9ca6d8fee64d61f570c6d487d8ce&quot;, element=&quot;0.6173312553820227-7&quot;)&gt; present after selecting
+Clicked on element with locator: //a[@href=&#x27;#ldap_servers&#x27;] locatorType: xpath
+element&lt;selenium.webdriver.remote.webelement.WebElement (session=&quot;df3a9ca6d8fee64d61f570c6d487d8ce&quot;, element=&quot;0.6173312553820227-8&quot;)&gt; present after selecting
+Clicked on element with locator: //a[@href=&#x27;#ldap_servers/add&#x27;] locatorType: xpath
+element&lt;selenium.webdriver.remote.webelement.WebElement (session=&quot;df3a9ca6d8fee64d61f570c6d487d8ce&quot;, element=&quot;0.6173312553820227-12&quot;)&gt; present after selecting
+Clicked on element with locator: //*[@id=&#x27;encryption&#x27;]/span locatorType: xpath
+element  None
+hover to element with locator: //*[@id=&#x27;encryption&#x27;]/li[3] locatorType: xpath
+element&lt;selenium.webdriver.remote.webelement.WebElement (session=&quot;df3a9ca6d8fee64d61f570c6d487d8ce&quot;, element=&quot;0.6173312553820227-22&quot;)&gt; present after selecting
+Clicked on element with locator: //a[@id=&#x27;form-overlay-test&#x27;] locatorType: xpath
+element&lt;selenium.webdriver.remote.webelement.WebElement (session=&quot;df3a9ca6d8fee64d61f570c6d487d8ce&quot;, element=&quot;0.6173312553820227-23&quot;)&gt; present after selecting
+Clicked on element with locator: Submit locatorType: linktext
+<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test/test_add_nessus_scanner/test_add_nessus_scanner.py::Repo::testa_add_logina</td>
+          <td class="col-duration">7.74</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> -----------------------------Captured stdout setup------------------------------ <br/>Running one time setUp
+running test on chrome file
+<br/> ------------------------------Captured stdout call------------------------------ <br/>element&lt;selenium.webdriver.remote.webelement.WebElement (session=&quot;3302ea411c001190ec5f23efd3572543&quot;, element=&quot;0.6425229667129468-4&quot;)&gt; present after selecting
+Clicked on element with locator: //input[contains(@value,&#x27;Sign In&#x27;)] locatorType: xpath
+<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test/test_add_nessus_scanner/test_add_nessus_scanner.py::Repo::testb_methodc_1</td>
+          <td class="col-duration">9.73</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> ------------------------------Captured stdout call------------------------------ <br/>test https://172.26.18.173/#dashboard/1
+element&lt;selenium.webdriver.remote.webelement.WebElement (session=&quot;3302ea411c001190ec5f23efd3572543&quot;, element=&quot;0.6425229667129468-6&quot;)&gt; present after selecting
+Clicked on element with locator: Resources locatorType: linktext
+element&lt;selenium.webdriver.remote.webelement.WebElement (session=&quot;3302ea411c001190ec5f23efd3572543&quot;, element=&quot;0.6425229667129468-7&quot;)&gt; present after selecting
+Clicked on element with locator: Nessus Scanners locatorType: linktext
+element&lt;selenium.webdriver.remote.webelement.WebElement (session=&quot;3302ea411c001190ec5f23efd3572543&quot;, element=&quot;0.6425229667129468-8&quot;)&gt; present after selecting
+Clicked on element with locator: /html/body/div[1]/section/div/header/div[1]/div/div/div[2]/a[@data-action=&#x27;add&#x27;]  locatorType: xpath
+element&lt;selenium.webdriver.remote.webelement.WebElement (session=&quot;3302ea411c001190ec5f23efd3572543&quot;, element=&quot;0.6425229667129468-14&quot;)&gt; present after selecting
+Clicked on element with locator: //a[contains(text(),&quot;Submit&quot;)] locatorType: xpath
+<br/> ------------------------------Captured stderr call------------------------------ <br/>[INFO]: first nameCentos_Nessus secound name Centos_based_nessus third name 172.26.16.133
+[INFO]: first nameCentos_Nessus secound name Centos_based_nessus third name 172.26.16.133
+[INFO]: first nameCentos_Nessus secound name Centos_based_nessus third name 172.26.16.133
+<br/> -------------------------------Captured log call-------------------------------- <br/>[32mINFO    [0m root:test_add_nessus_scanner.py:45 first nameCentos_Nessus secound name Centos_based_nessus third name 172.26.16.133<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test/test_add_nessus_scanner/test_add_nessus_scanner.py::Repo::testb_methodc_2</td>
+          <td class="col-duration">9.65</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> ------------------------------Captured stdout call------------------------------ <br/>test https://172.26.18.173/#nessus_scanners
+element&lt;selenium.webdriver.remote.webelement.WebElement (session=&quot;3302ea411c001190ec5f23efd3572543&quot;, element=&quot;0.6425229667129468-6&quot;)&gt; present after selecting
+Clicked on element with locator: Resources locatorType: linktext
+element&lt;selenium.webdriver.remote.webelement.WebElement (session=&quot;3302ea411c001190ec5f23efd3572543&quot;, element=&quot;0.6425229667129468-7&quot;)&gt; present after selecting
+Clicked on element with locator: Nessus Scanners locatorType: linktext
+element&lt;selenium.webdriver.remote.webelement.WebElement (session=&quot;3302ea411c001190ec5f23efd3572543&quot;, element=&quot;0.6425229667129468-15&quot;)&gt; present after selecting
+Clicked on element with locator: /html/body/div[1]/section/div/header/div[1]/div/div/div[2]/a[@data-action=&#x27;add&#x27;]  locatorType: xpath
+element&lt;selenium.webdriver.remote.webelement.WebElement (session=&quot;3302ea411c001190ec5f23efd3572543&quot;, element=&quot;0.6425229667129468-21&quot;)&gt; present after selecting
+Clicked on element with locator: //a[contains(text(),&quot;Submit&quot;)] locatorType: xpath
+<br/> ------------------------------Captured stderr call------------------------------ <br/>[INFO]: first nameWindows_Nessus secound name Windows_based_nessus third name 172.26.16.92
+[INFO]: first nameWindows_Nessus secound name Windows_based_nessus third name 172.26.16.92
+[INFO]: first nameWindows_Nessus secound name Windows_based_nessus third name 172.26.16.92
+<br/> -------------------------------Captured log call-------------------------------- <br/>[32mINFO    [0m root:test_add_nessus_scanner.py:45 first nameWindows_Nessus secound name Windows_based_nessus third name 172.26.16.92<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test/test_add_nessus_scanner/test_add_nessus_scanner.py::Repo::testb_methodc_3</td>
+          <td class="col-duration">4.69</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> ------------------------------Captured stdout call------------------------------ <br/>element&lt;selenium.webdriver.remote.webelement.WebElement (session=&quot;3302ea411c001190ec5f23efd3572543&quot;, element=&quot;0.6425229667129468-6&quot;)&gt; present after selecting
+Clicked on element with locator: Resources locatorType: linktext
+element&lt;selenium.webdriver.remote.webelement.WebElement (session=&quot;3302ea411c001190ec5f23efd3572543&quot;, element=&quot;0.6425229667129468-7&quot;)&gt; present after selecting
+Clicked on element with locator: Nessus Scanners locatorType: linktext
+element&lt;selenium.webdriver.remote.webelement.WebElement (session=&quot;3302ea411c001190ec5f23efd3572543&quot;, element=&quot;0.6425229667129468-22&quot;)&gt; present after selecting
+Clicked on element with locator: /html/body/div[1]/section/div/header/div[1]/div/div/div[2]/a[@data-action=&#x27;add&#x27;]  locatorType: xpath
+element&lt;selenium.webdriver.remote.webelement.WebElement (session=&quot;3302ea411c001190ec5f23efd3572543&quot;, element=&quot;0.6425229667129468-28&quot;)&gt; present after selecting
+Clicked on element with locator: //*[@id=&#x27;agentCapable-input&#x27;] locatorType: xpath
+element&lt;selenium.webdriver.remote.webelement.WebElement (session=&quot;3302ea411c001190ec5f23efd3572543&quot;, element=&quot;0.6425229667129468-29&quot;)&gt; present after selecting
+Clicked on element with locator: //a[contains(text(),&quot;Submit&quot;)] locatorType: xpath
+test https://172.26.18.173/#nessus_scanners/add
+<br/> ------------------------------Captured stderr call------------------------------ <br/>[INFO]: first nameagent_centos_nessus secound name agent capable centos nessus third name 172.26.18.96
+[INFO]: first nameagent_centos_nessus secound name agent capable centos nessus third name 172.26.18.96
+[INFO]: first nameagent_centos_nessus secound name agent capable centos nessus third name 172.26.18.96
+[INFO]: Entering values for agent
+[INFO]: Entering values for agent
+[INFO]: Entering values for agent
+<br/> -------------------------------Captured log call-------------------------------- <br/>[32mINFO    [0m root:test_add_nessus_scanner.py:45 first nameagent_centos_nessus secound name agent capable centos nessus third name 172.26.18.96
+[32mINFO    [0m root:test_add_nessus_scanner.py:49 Entering values for agent<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test/test_add_nnm/test_add_nnm_instance.py::Repo::testa_add_logina</td>
+          <td class="col-duration">9.99</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> -----------------------------Captured stdout setup------------------------------ <br/>Running one time setUp
+running test on chrome file
+<br/> ------------------------------Captured stdout call------------------------------ <br/>element&lt;selenium.webdriver.remote.webelement.WebElement (session=&quot;0e107e71cffe8ab2a29363017509c57d&quot;, element=&quot;0.10354826840961873-4&quot;)&gt; present after selecting
+Clicked on element with locator: //input[contains(@value,&#x27;Sign In&#x27;)] locatorType: xpath
+<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test/test_add_nnm/test_add_nnm_instance.py::Repo::testb_add_nnm_repo_1</td>
+          <td class="col-duration">0.81</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> ------------------------------Captured stdout call------------------------------ <br/>values netering in
+enter value test_nnm_repo
+enter value Adding nnm description
+enter value 172.26.48.0/24 ,172.26.18.0/24
+element&lt;selenium.webdriver.remote.webelement.WebElement (session=&quot;0e107e71cffe8ab2a29363017509c57d&quot;, element=&quot;0.10354826840961873-6&quot;)&gt; present after selecting
+Clicked on element with locator: Repositories locatorType: linktext
+element&lt;selenium.webdriver.remote.webelement.WebElement (session=&quot;0e107e71cffe8ab2a29363017509c57d&quot;, element=&quot;0.10354826840961873-7&quot;)&gt; present after selecting
+Clicked on element with locator: //a[@href=&#x27;#repositories&#x27;] locatorType: xpath
+element&lt;selenium.webdriver.remote.webelement.WebElement (session=&quot;0e107e71cffe8ab2a29363017509c57d&quot;, element=&quot;0.10354826840961873-8&quot;)&gt; present after selecting
+Clicked on element with locator: //a[contains(@href,&#x27;#repositories/add&#x27;)]/child::span locatorType: xpath
+element&lt;selenium.webdriver.remote.webelement.WebElement (session=&quot;0e107e71cffe8ab2a29363017509c57d&quot;, element=&quot;0.10354826840961873-9&quot;)&gt; present after selecting
+Clicked on element with locator: //i[@class=&#x27;icon icon-desktop&#x27;]/child::span[contains(text(),&#x27;v4&#x27;)] locatorType: xpath
+element&lt;selenium.webdriver.remote.webelement.WebElement (session=&quot;0e107e71cffe8ab2a29363017509c57d&quot;, element=&quot;0.10354826840961873-13&quot;)&gt; present after selecting
+Clicked on element with locator: //input[@id=&#x27;trendingEnabled-input&#x27;] locatorType: xpath
+element&lt;selenium.webdriver.remote.webelement.WebElement (session=&quot;0e107e71cffe8ab2a29363017509c57d&quot;, element=&quot;0.10354826840961873-13&quot;)&gt; present after selecting
+Clicked on element with locator: //input[@id=&#x27;trendingEnabled-input&#x27;] locatorType: xpath
+element&lt;selenium.webdriver.remote.webelement.WebElement (session=&quot;0e107e71cffe8ab2a29363017509c57d&quot;, element=&quot;0.10354826840961873-14&quot;)&gt; present after selecting
+Clicked on element with locator: //a[@id = &#x27;form-overlay-submit&#x27;] locatorType: xpath
+<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test/test_add_nnm/test_add_nnm_instance.py::Repo::testc_add_nnm</td>
+          <td class="col-duration">6.47</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> ------------------------------Captured stdout call------------------------------ <br/>element&lt;selenium.webdriver.remote.webelement.WebElement (session=&quot;0e107e71cffe8ab2a29363017509c57d&quot;, element=&quot;0.10354826840961873-15&quot;)&gt; present after selecting
+Clicked on element with locator: Resources locatorType: linktext
+element&lt;selenium.webdriver.remote.webelement.WebElement (session=&quot;0e107e71cffe8ab2a29363017509c57d&quot;, element=&quot;0.10354826840961873-16&quot;)&gt; present after selecting
+Clicked on element with locator: Nessus Network Monitors locatorType: linktext
+element&lt;selenium.webdriver.remote.webelement.WebElement (session=&quot;0e107e71cffe8ab2a29363017509c57d&quot;, element=&quot;0.10354826840961873-17&quot;)&gt; present after selecting
+Clicked on element with locator: //a[@href=&#x27;#passive_scanners/add&#x27;] locatorType: xpath
+element&lt;selenium.webdriver.remote.webelement.WebElement (session=&quot;0e107e71cffe8ab2a29363017509c57d&quot;, element=&quot;0.10354826840961873-24&quot;)&gt; present after selecting
+Clicked on element with locator: //*[@id=&#x27;repositories&#x27;]/li[1]/a locatorType: xpath
+element&lt;selenium.webdriver.remote.webelement.WebElement (session=&quot;0e107e71cffe8ab2a29363017509c57d&quot;, element=&quot;0.10354826840961873-25&quot;)&gt; present after selecting
+Clicked on element with locator: Submit locatorType: linktext
+<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test/test_add_org/test_add_org.py::Repo::testa_add_logina</td>
+          <td class="col-duration">7.86</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> -----------------------------Captured stdout setup------------------------------ <br/>Running one time setUp
+running test on chrome file
+driver file &lt;selenium.webdriver.chrome.webdriver.WebDriver (session=&quot;4eeb5ebd414d5829a133391b19caacbe&quot;)&gt;
+<br/> ------------------------------Captured stdout call------------------------------ <br/>element&lt;selenium.webdriver.remote.webelement.WebElement (session=&quot;4eeb5ebd414d5829a133391b19caacbe&quot;, element=&quot;0.5144031371488038-4&quot;)&gt; present after selecting
+Clicked on element with locator: //input[contains(@value,&#x27;Sign In&#x27;)] locatorType: xpath
+<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test/test_add_org/test_add_org.py::Repo::testb_add_org_1</td>
+          <td class="col-duration">22.27</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> -----------------------------Captured stdout setup------------------------------ <br/>driver file &lt;selenium.webdriver.chrome.webdriver.WebDriver (session=&quot;4eeb5ebd414d5829a133391b19caacbe&quot;)&gt;
+<br/> ------------------------------Captured stdout call------------------------------ <br/>element&lt;selenium.webdriver.remote.webelement.WebElement (session=&quot;4eeb5ebd414d5829a133391b19caacbe&quot;, element=&quot;0.5144031371488038-6&quot;)&gt; present after selecting
+Clicked on element with locator: //a[@href=&#x27;#organizations&#x27;] locatorType: xpath
+element&lt;selenium.webdriver.remote.webelement.WebElement (session=&quot;4eeb5ebd414d5829a133391b19caacbe&quot;, element=&quot;0.5144031371488038-7&quot;)&gt; present after selecting
+Clicked on element with locator: //a[@href=&#x27;#organizations/add&#x27;] locatorType: xpath
+Click on element on dropdown element
+element&lt;selenium.webdriver.remote.webelement.WebElement (session=&quot;4eeb5ebd414d5829a133391b19caacbe&quot;, element=&quot;0.5144031371488038-10&quot;)&gt; present after selecting
+Clicked on element with locator: //*[@id=&#x27;distributionMethod&#x27;]/span/div/span[@data-toggle=&#x27;dropdown&#x27;] locatorType: xpath
+element  Selectable Zones
+hover to element with locator: //*[@id=&quot;distributionMethod&quot;]/li[3]/a[contains(text(),&quot;Selectable Zones&quot;)] locatorType: xpath
+element&lt;selenium.webdriver.remote.webelement.WebElement (session=&quot;4eeb5ebd414d5829a133391b19caacbe&quot;, element=&quot;0.5144031371488038-12&quot;)&gt; present after selecting
+Clicked on element with locator: //*[@id=&quot;automaticDistribution-input&quot;] locatorType: xpath
+element  No Items
+hover to element with locator: //*[@id=&#x27;unforcedZones&#x27;]/li[1]/a locatorType: xpath
+element  test_nnm_repo
+hover to element with locator: //*[@id=&#x27;repositories&#x27;]/li[1] locatorType: xpath
+element  agent_centos_nessus
+hover to element with locator: //*[@id=&#x27;agentScanners&#x27;]/li/a locatorType: xpath
+element  LDAP 3 Test
+hover to element with locator: //*[@id=&#x27;ldapServers&#x27;]/li/a locatorType: xpath
+element&lt;selenium.webdriver.remote.webelement.WebElement (session=&quot;4eeb5ebd414d5829a133391b19caacbe&quot;, element=&quot;0.5144031371488038-17&quot;)&gt; present after selecting
+Clicked on element with locator: Submit locatorType: linktext
+element  Cancel
+hover to element with locator: //*[@id=&#x27;add-org-user-cancel&#x27;] locatorType: xpath
+<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test/test_add_scanzone/test_scan_zone.py::Login::testa_method</td>
+          <td class="col-duration">7.88</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> -----------------------------Captured stdout setup------------------------------ <br/>Running one time setUp
+running test on chrome file
+<br/> -----------------------------Captured stderr setup------------------------------ <br/>[INFO]: testing this file
+[INFO]: testing this file
+[INFO]: testing this file
+[INFO]: started loggin 
+[INFO]: started loggin 
+[INFO]: started loggin 
+<br/> -------------------------------Captured log setup------------------------------- <br/>[32mINFO    [0m root:test_scan_zone.py:27 testing this file
+[32mINFO    [0m root:test_scan_zone.py:28 started loggin<br/> ------------------------------Captured stdout call------------------------------ <br/>element&lt;selenium.webdriver.remote.webelement.WebElement (session=&quot;4720242fc210b441db3192005d4cac41&quot;, element=&quot;0.7026771168081924-4&quot;)&gt; present after selecting
+Clicked on element with locator: //input[contains(@value,&#x27;Sign In&#x27;)] locatorType: xpath
+<br/> ------------------------------Captured stderr call------------------------------ <br/>[INFO]: Entering data for username and password for login
+[INFO]: Entering data for username and password for login
+[INFO]: Entering data for username and password for login
+[INFO]: Logging is successfull
+[INFO]: Logging is successfull
+[INFO]: Logging is successfull
+<br/> -------------------------------Captured log call-------------------------------- <br/>[32mINFO    [0m root:test_scan_zone.py:36 Entering data for username and password for login
+[32mINFO    [0m root:test_scan_zone.py:38 Logging is successfull<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test/test_add_scanzone/test_scan_zone.py::Login::testc_add_scanzone_1</td>
+          <td class="col-duration">15.76</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> -----------------------------Captured stderr setup------------------------------ <br/>[INFO]: testing this file
+[INFO]: testing this file
+[INFO]: testing this file
+[INFO]: started loggin 
+[INFO]: started loggin 
+[INFO]: started loggin 
+<br/> -------------------------------Captured log setup------------------------------- <br/>[32mINFO    [0m root:test_scan_zone.py:27 testing this file
+[32mINFO    [0m root:test_scan_zone.py:28 started loggin<br/> ------------------------------Captured stdout call------------------------------ <br/>element&lt;selenium.webdriver.remote.webelement.WebElement (session=&quot;4720242fc210b441db3192005d4cac41&quot;, element=&quot;0.7026771168081924-6&quot;)&gt; present after selecting
+Clicked on element with locator: Resources locatorType: linktext
+element&lt;selenium.webdriver.remote.webelement.WebElement (session=&quot;4720242fc210b441db3192005d4cac41&quot;, element=&quot;0.7026771168081924-7&quot;)&gt; present after selecting
+Clicked on element with locator: Scan Zones locatorType: linktext
+element&lt;selenium.webdriver.remote.webelement.WebElement (session=&quot;4720242fc210b441db3192005d4cac41&quot;, element=&quot;0.7026771168081924-8&quot;)&gt; present after selecting
+Clicked on element with locator: //a[@href=&#x27;#scan_zones/add&#x27;] locatorType: xpath
+Entering data in fieldCentos_Nessus
+values or click centos element
+element&lt;selenium.webdriver.remote.webelement.WebElement (session=&quot;4720242fc210b441db3192005d4cac41&quot;, element=&quot;0.7026771168081924-13&quot;)&gt; present after selecting
+Clicked on element with locator: //li[@class=&#x27;item-list-item label-centos_nessus&#x27;] locatorType: xpath
+element&lt;selenium.webdriver.remote.webelement.WebElement (session=&quot;4720242fc210b441db3192005d4cac41&quot;, element=&quot;0.7026771168081924-14&quot;)&gt; present after selecting
+Clicked on element with locator: Submit locatorType: linktext
+<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test/test_add_scanzone/test_scan_zone.py::Login::testc_add_scanzone_2</td>
+          <td class="col-duration">15.71</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> -----------------------------Captured stderr setup------------------------------ <br/>[INFO]: testing this file
+[INFO]: testing this file
+[INFO]: testing this file
+[INFO]: started loggin 
+[INFO]: started loggin 
+[INFO]: started loggin 
+<br/> -------------------------------Captured log setup------------------------------- <br/>[32mINFO    [0m root:test_scan_zone.py:27 testing this file
+[32mINFO    [0m root:test_scan_zone.py:28 started loggin<br/> ------------------------------Captured stdout call------------------------------ <br/>element&lt;selenium.webdriver.remote.webelement.WebElement (session=&quot;4720242fc210b441db3192005d4cac41&quot;, element=&quot;0.7026771168081924-6&quot;)&gt; present after selecting
+Clicked on element with locator: Resources locatorType: linktext
+element&lt;selenium.webdriver.remote.webelement.WebElement (session=&quot;4720242fc210b441db3192005d4cac41&quot;, element=&quot;0.7026771168081924-7&quot;)&gt; present after selecting
+Clicked on element with locator: Scan Zones locatorType: linktext
+element&lt;selenium.webdriver.remote.webelement.WebElement (session=&quot;4720242fc210b441db3192005d4cac41&quot;, element=&quot;0.7026771168081924-15&quot;)&gt; present after selecting
+Clicked on element with locator: //a[@href=&#x27;#scan_zones/add&#x27;] locatorType: xpath
+Entering data in fieldWindows_Nessus
+element&lt;selenium.webdriver.remote.webelement.WebElement (session=&quot;4720242fc210b441db3192005d4cac41&quot;, element=&quot;0.7026771168081924-20&quot;)&gt; present after selecting
+Clicked on element with locator: //li[@class=&#x27;item-list-item label-windows_nessus&#x27;] locatorType: xpath
+element&lt;selenium.webdriver.remote.webelement.WebElement (session=&quot;4720242fc210b441db3192005d4cac41&quot;, element=&quot;0.7026771168081924-21&quot;)&gt; present after selecting
+Clicked on element with locator: Submit locatorType: linktext
+<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test/test_add_scanzone/test_scan_zone.py::Login::testc_add_scanzone_3</td>
+          <td class="col-duration">15.74</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> -----------------------------Captured stderr setup------------------------------ <br/>[INFO]: testing this file
+[INFO]: testing this file
+[INFO]: testing this file
+[INFO]: started loggin 
+[INFO]: started loggin 
+[INFO]: started loggin 
+<br/> -------------------------------Captured log setup------------------------------- <br/>[32mINFO    [0m root:test_scan_zone.py:27 testing this file
+[32mINFO    [0m root:test_scan_zone.py:28 started loggin<br/> ------------------------------Captured stdout call------------------------------ <br/>element&lt;selenium.webdriver.remote.webelement.WebElement (session=&quot;4720242fc210b441db3192005d4cac41&quot;, element=&quot;0.7026771168081924-6&quot;)&gt; present after selecting
+Clicked on element with locator: Resources locatorType: linktext
+element&lt;selenium.webdriver.remote.webelement.WebElement (session=&quot;4720242fc210b441db3192005d4cac41&quot;, element=&quot;0.7026771168081924-7&quot;)&gt; present after selecting
+Clicked on element with locator: Scan Zones locatorType: linktext
+element&lt;selenium.webdriver.remote.webelement.WebElement (session=&quot;4720242fc210b441db3192005d4cac41&quot;, element=&quot;0.7026771168081924-22&quot;)&gt; present after selecting
+Clicked on element with locator: //a[@href=&#x27;#scan_zones/add&#x27;] locatorType: xpath
+Entering data in fieldagent_centos_nessus
+element&lt;selenium.webdriver.remote.webelement.WebElement (session=&quot;4720242fc210b441db3192005d4cac41&quot;, element=&quot;0.7026771168081924-27&quot;)&gt; present after selecting
+Clicked on element with locator: //*[@id=&#x27;scanners&#x27;]/li[3]/a locatorType: xpath
+element&lt;selenium.webdriver.remote.webelement.WebElement (session=&quot;4720242fc210b441db3192005d4cac41&quot;, element=&quot;0.7026771168081924-28&quot;)&gt; present after selecting
+Clicked on element with locator: Submit locatorType: linktext
+<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test/test_add_scanzone/test_scan_zone.py::Login::testd_add_scanzone_both_WindowsAndCentos_1</td>
+          <td class="col-duration">18.37</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> -----------------------------Captured stderr setup------------------------------ <br/>[INFO]: testing this file
+[INFO]: testing this file
+[INFO]: testing this file
+[INFO]: started loggin 
+[INFO]: started loggin 
+[INFO]: started loggin 
+<br/> -------------------------------Captured log setup------------------------------- <br/>[32mINFO    [0m root:test_scan_zone.py:27 testing this file
+[32mINFO    [0m root:test_scan_zone.py:28 started loggin<br/> ------------------------------Captured stdout call------------------------------ <br/>element&lt;selenium.webdriver.remote.webelement.WebElement (session=&quot;4720242fc210b441db3192005d4cac41&quot;, element=&quot;0.7026771168081924-6&quot;)&gt; present after selecting
+Clicked on element with locator: Resources locatorType: linktext
+element&lt;selenium.webdriver.remote.webelement.WebElement (session=&quot;4720242fc210b441db3192005d4cac41&quot;, element=&quot;0.7026771168081924-7&quot;)&gt; present after selecting
+Clicked on element with locator: Scan Zones locatorType: linktext
+element&lt;selenium.webdriver.remote.webelement.WebElement (session=&quot;4720242fc210b441db3192005d4cac41&quot;, element=&quot;0.7026771168081924-29&quot;)&gt; present after selecting
+Clicked on element with locator: //a[@href=&#x27;#scan_zones/add&#x27;] locatorType: xpath
+values or click centos element
+element&lt;selenium.webdriver.remote.webelement.WebElement (session=&quot;4720242fc210b441db3192005d4cac41&quot;, element=&quot;0.7026771168081924-34&quot;)&gt; present after selecting
+Clicked on element with locator: //li[@class=&#x27;item-list-item label-centos_nessus&#x27;] locatorType: xpath
+Clicked on element with locator: //input[@class=&#x27;select-view-search-input&#x27;] locatorType: xpath
+element&lt;selenium.webdriver.remote.webelement.WebElement (session=&quot;4720242fc210b441db3192005d4cac41&quot;, element=&quot;0.7026771168081924-35&quot;)&gt; present after selecting
+Clicked on element with locator: //li[@class=&#x27;item-list-item label-windows_nessus&#x27;] locatorType: xpath
+element&lt;selenium.webdriver.remote.webelement.WebElement (session=&quot;4720242fc210b441db3192005d4cac41&quot;, element=&quot;0.7026771168081924-36&quot;)&gt; present after selecting
+Clicked on element with locator: Submit locatorType: linktext
+<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test/test_config/test_systemfile.py::Config::testa_add_logina</td>
+          <td class="col-duration">7.95</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> -----------------------------Captured stdout setup------------------------------ <br/>Running one time setUp
+running test on chrome file
+<br/> ------------------------------Captured stdout call------------------------------ <br/>element&lt;selenium.webdriver.remote.webelement.WebElement (session=&quot;eb9ba24cecb74ffde590761099dda51e&quot;, element=&quot;0.11034951140356664-4&quot;)&gt; present after selecting
+Clicked on element with locator: //input[contains(@value,&#x27;Sign In&#x27;)] locatorType: xpath
+<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test/test_config/test_systemfile.py::Config::testb_method</td>
+          <td class="col-duration">48.04</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> ------------------------------Captured stdout call------------------------------ <br/>element&lt;selenium.webdriver.remote.webelement.WebElement (session=&quot;eb9ba24cecb74ffde590761099dda51e&quot;, element=&quot;0.11034951140356664-6&quot;)&gt; present after selecting
+Clicked on element with locator: //*[@id=&#x27;header&#x27;]/div/nav[1]/span[7] locatorType: xpath
+element&lt;selenium.webdriver.remote.webelement.WebElement (session=&quot;eb9ba24cecb74ffde590761099dda51e&quot;, element=&quot;0.11034951140356664-7&quot;)&gt; present after selecting
+Clicked on element with locator: //*[@id=&#x27;header&#x27;]/div/nav[1]/span[7]/ul/li[1]/a locatorType: xpath
+element&lt;selenium.webdriver.remote.webelement.WebElement (session=&quot;eb9ba24cecb74ffde590761099dda51e&quot;, element=&quot;0.11034951140356664-8&quot;)&gt; present after selecting
+Clicked on element with locator: //*[@id=&#x27;configuration-content&#x27;]/div[1]/div/div/ul/li[7]/i locatorType: xpath
+element&lt;selenium.webdriver.remote.webelement.WebElement (session=&quot;eb9ba24cecb74ffde590761099dda51e&quot;, element=&quot;0.11034951140356664-9&quot;)&gt; present after selecting
+Clicked on element with locator: //*[@id=&#x27;feedUpdate&#x27;]/div[3]/div[1]/div[1]/div/i[2] locatorType: xpath
+element&lt;selenium.webdriver.remote.webelement.WebElement (session=&quot;eb9ba24cecb74ffde590761099dda51e&quot;, element=&quot;0.11034951140356664-10&quot;)&gt; present after selecting
+Clicked on element with locator: //*[@id=&#x27;feedUpdate&#x27;]/div[3]/div[1]/div[3]/a locatorType: xpath
+element&lt;selenium.webdriver.remote.webelement.WebElement (session=&quot;eb9ba24cecb74ffde590761099dda51e&quot;, element=&quot;0.11034951140356664-11&quot;)&gt; present after selecting
+Clicked on element with locator: Submit locatorType: linktext
+element&lt;selenium.webdriver.remote.webelement.WebElement (session=&quot;eb9ba24cecb74ffde590761099dda51e&quot;, element=&quot;0.11034951140356664-12&quot;)&gt; present after selecting
+Clicked on element with locator: //*[@id=&#x27;pluginUpdate&#x27;]/div[3]/div[1]/div[1]/div/i[2] locatorType: xpath
+element&lt;selenium.webdriver.remote.webelement.WebElement (session=&quot;eb9ba24cecb74ffde590761099dda51e&quot;, element=&quot;0.11034951140356664-13&quot;)&gt; present after selecting
+Clicked on element with locator: //*[@id=&#x27;pluginUpdate&#x27;]/div[3]/div[1]/div[3]/a locatorType: xpath
+element&lt;selenium.webdriver.remote.webelement.WebElement (session=&quot;eb9ba24cecb74ffde590761099dda51e&quot;, element=&quot;0.11034951140356664-14&quot;)&gt; present after selecting
+Clicked on element with locator: Submit locatorType: linktext
+element&lt;selenium.webdriver.remote.webelement.WebElement (session=&quot;eb9ba24cecb74ffde590761099dda51e&quot;, element=&quot;0.11034951140356664-15&quot;)&gt; present after selecting
+Clicked on element with locator: //*[@id=&#x27;passivePluginUpdate&#x27;]/div[3]/div[1]/div[1]/div/i[2] locatorType: xpath
+element&lt;selenium.webdriver.remote.webelement.WebElement (session=&quot;eb9ba24cecb74ffde590761099dda51e&quot;, element=&quot;0.11034951140356664-16&quot;)&gt; present after selecting
+Clicked on element with locator: //*[@id=&#x27;passivePluginUpdate&#x27;]/div[3]/div[1]/div[3]/a locatorType: xpath
+element&lt;selenium.webdriver.remote.webelement.WebElement (session=&quot;eb9ba24cecb74ffde590761099dda51e&quot;, element=&quot;0.11034951140356664-17&quot;)&gt; present after selecting
+Clicked on element with locator: Submit locatorType: linktext
+element&lt;selenium.webdriver.remote.webelement.WebElement (session=&quot;eb9ba24cecb74ffde590761099dda51e&quot;, element=&quot;0.11034951140356664-18&quot;)&gt; present after selecting
+Clicked on element with locator: //*[@id=&#x27;lcePluginUpdate&#x27;]/div[3]/div[1]/div[1]/div/i[2] locatorType: xpath
+element&lt;selenium.webdriver.remote.webelement.WebElement (session=&quot;eb9ba24cecb74ffde590761099dda51e&quot;, element=&quot;0.11034951140356664-19&quot;)&gt; present after selecting
+Clicked on element with locator: //*[@id=&#x27;lcePluginUpdate&#x27;]/div[3]/div[1]/div[3]/a locatorType: xpath
+element&lt;selenium.webdriver.remote.webelement.WebElement (session=&quot;eb9ba24cecb74ffde590761099dda51e&quot;, element=&quot;0.11034951140356664-20&quot;)&gt; present after selecting
+Clicked on element with locator: Submit locatorType: linktext
+<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test/test_industrialsecurity/test_is.py::Repo::testa_add_logina</td>
+          <td class="col-duration">8.25</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> -----------------------------Captured stdout setup------------------------------ <br/>Running one time setUp
+running test on chrome file
+<br/> ------------------------------Captured stdout call------------------------------ <br/>element&lt;selenium.webdriver.remote.webelement.WebElement (session=&quot;7601dbe99051c3c04d55694b4a6fcdcd&quot;, element=&quot;0.19389849948285565-4&quot;)&gt; present after selecting
+Clicked on element with locator: //input[contains(@value,&#x27;Sign In&#x27;)] locatorType: xpath
+<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test/test_industrialsecurity/test_is.py::Repo::testb_add_is_instance</td>
+          <td class="col-duration">23.91</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> ------------------------------Captured stdout call------------------------------ <br/>element&lt;selenium.webdriver.remote.webelement.WebElement (session=&quot;7601dbe99051c3c04d55694b4a6fcdcd&quot;, element=&quot;0.19389849948285565-6&quot;)&gt; present after selecting
+Clicked on element with locator: Resources locatorType: linktext
+element&lt;selenium.webdriver.remote.webelement.WebElement (session=&quot;7601dbe99051c3c04d55694b4a6fcdcd&quot;, element=&quot;0.19389849948285565-7&quot;)&gt; present after selecting
+Clicked on element with locator: Industrial Security Instances locatorType: linktext
+element&lt;selenium.webdriver.remote.webelement.WebElement (session=&quot;7601dbe99051c3c04d55694b4a6fcdcd&quot;, element=&quot;0.19389849948285565-8&quot;)&gt; present after selecting
+Clicked on element with locator: //a[@href=&#x27;#industrial_scanners/add&#x27;] locatorType: xpath
+Element not found with locator: //i[@class=&#x27;toggle-selected  icon-square-o &#x27;] and locatorType: xpath
+elementNone present after selecting
+cannot click on the element with locator: //i[@class=&#x27;toggle-selected  icon-square-o &#x27;] locatorType: xpath
+element&lt;selenium.webdriver.remote.webelement.WebElement (session=&quot;7601dbe99051c3c04d55694b4a6fcdcd&quot;, element=&quot;0.19389849948285565-15&quot;)&gt; present after selecting
+Clicked on element with locator: Submit locatorType: linktext
+<br/> ------------------------------Captured stderr call------------------------------ <br/>  File &quot;/home/delixus/Documents/Automation/Sc/venv_test/bin/pytest&quot;, line 10, in &lt;module&gt;
+    sys.exit(main())
+  File &quot;/home/delixus/Documents/Automation/Sc/venv_test/lib/python3.6/site-packages/_pytest/config/__init__.py&quot;, line 92, in main
+    config=config
+  File &quot;/home/delixus/Documents/Automation/Sc/venv_test/lib/python3.6/site-packages/pluggy/hooks.py&quot;, line 286, in __call__
+    return self._hookexec(self, self.get_hookimpls(), kwargs)
+  File &quot;/home/delixus/Documents/Automation/Sc/venv_test/lib/python3.6/site-packages/pluggy/manager.py&quot;, line 93, in _hookexec
+    return self._inner_hookexec(hook, methods, kwargs)
+  File &quot;/home/delixus/Documents/Automation/Sc/venv_test/lib/python3.6/site-packages/pluggy/manager.py&quot;, line 87, in &lt;lambda&gt;
+    firstresult=hook.spec.opts.get(&quot;firstresult&quot;) if hook.spec else False,
+  File &quot;/home/delixus/Documents/Automation/Sc/venv_test/lib/python3.6/site-packages/pluggy/callers.py&quot;, line 187, in _multicall
+    res = hook_impl.function(*args)
+  File &quot;/home/delixus/Documents/Automation/Sc/venv_test/lib/python3.6/site-packages/_pytest/main.py&quot;, line 239, in pytest_cmdline_main
+    return wrap_session(config, _main)
+  File &quot;/home/delixus/Documents/Automation/Sc/venv_test/lib/python3.6/site-packages/_pytest/main.py&quot;, line 196, in wrap_session
+    session.exitstatus = doit(config, session) or 0
+  File &quot;/home/delixus/Documents/Automation/Sc/venv_test/lib/python3.6/site-packages/_pytest/main.py&quot;, line 246, in _main
+    config.hook.pytest_runtestloop(session=session)
+  File &quot;/home/delixus/Documents/Automation/Sc/venv_test/lib/python3.6/site-packages/pluggy/hooks.py&quot;, line 286, in __call__
+    return self._hookexec(self, self.get_hookimpls(), kwargs)
+  File &quot;/home/delixus/Documents/Automation/Sc/venv_test/lib/python3.6/site-packages/pluggy/manager.py&quot;, line 93, in _hookexec
+    return self._inner_hookexec(hook, methods, kwargs)
+  File &quot;/home/delixus/Documents/Automation/Sc/venv_test/lib/python3.6/site-packages/pluggy/manager.py&quot;, line 87, in &lt;lambda&gt;
+    firstresult=hook.spec.opts.get(&quot;firstresult&quot;) if hook.spec else False,
+  File &quot;/home/delixus/Documents/Automation/Sc/venv_test/lib/python3.6/site-packages/pluggy/callers.py&quot;, line 187, in _multicall
+    res = hook_impl.function(*args)
+  File &quot;/home/delixus/Documents/Automation/Sc/venv_test/lib/python3.6/site-packages/_pytest/main.py&quot;, line 270, in pytest_runtestloop
+    item.config.hook.pytest_runtest_protocol(item=item, nextitem=nextitem)
+  File &quot;/home/delixus/Documents/Automation/Sc/venv_test/lib/python3.6/site-packages/pluggy/hooks.py&quot;, line 286, in __call__
+    return self._hookexec(self, self.get_hookimpls(), kwargs)
+  File &quot;/home/delixus/Documents/Automation/Sc/venv_test/lib/python3.6/site-packages/pluggy/manager.py&quot;, line 93, in _hookexec
+    return self._inner_hookexec(hook, methods, kwargs)
+  File &quot;/home/delixus/Documents/Automation/Sc/venv_test/lib/python3.6/site-packages/pluggy/manager.py&quot;, line 87, in &lt;lambda&gt;
+    firstresult=hook.spec.opts.get(&quot;firstresult&quot;) if hook.spec else False,
+  File &quot;/home/delixus/Documents/Automation/Sc/venv_test/lib/python3.6/site-packages/pluggy/callers.py&quot;, line 187, in _multicall
+    res = hook_impl.function(*args)
+  File &quot;/home/delixus/Documents/Automation/Sc/venv_test/lib/python3.6/site-packages/_pytest/runner.py&quot;, line 81, in pytest_runtest_protocol
+    runtestprotocol(item, nextitem=nextitem)
+  File &quot;/home/delixus/Documents/Automation/Sc/venv_test/lib/python3.6/site-packages/_pytest/runner.py&quot;, line 96, in runtestprotocol
+    reports.append(call_and_report(item, &quot;call&quot;, log))
+  File &quot;/home/delixus/Documents/Automation/Sc/venv_test/lib/python3.6/site-packages/_pytest/runner.py&quot;, line 182, in call_and_report
+    call = call_runtest_hook(item, when, **kwds)
+  File &quot;/home/delixus/Documents/Automation/Sc/venv_test/lib/python3.6/site-packages/_pytest/runner.py&quot;, line 207, in call_runtest_hook
+    lambda: ihook(item=item, **kwds), when=when, reraise=reraise
+  File &quot;/home/delixus/Documents/Automation/Sc/venv_test/lib/python3.6/site-packages/_pytest/runner.py&quot;, line 234, in from_call
+    result = func()
+  File &quot;/home/delixus/Documents/Automation/Sc/venv_test/lib/python3.6/site-packages/_pytest/runner.py&quot;, line 207, in &lt;lambda&gt;
+    lambda: ihook(item=item, **kwds), when=when, reraise=reraise
+  File &quot;/home/delixus/Documents/Automation/Sc/venv_test/lib/python3.6/site-packages/pluggy/hooks.py&quot;, line 286, in __call__
+    return self._hookexec(self, self.get_hookimpls(), kwargs)
+  File &quot;/home/delixus/Documents/Automation/Sc/venv_test/lib/python3.6/site-packages/pluggy/manager.py&quot;, line 93, in _hookexec
+    return self._inner_hookexec(hook, methods, kwargs)
+  File &quot;/home/delixus/Documents/Automation/Sc/venv_test/lib/python3.6/site-packages/pluggy/manager.py&quot;, line 87, in &lt;lambda&gt;
+    firstresult=hook.spec.opts.get(&quot;firstresult&quot;) if hook.spec else False,
+  File &quot;/home/delixus/Documents/Automation/Sc/venv_test/lib/python3.6/site-packages/pluggy/callers.py&quot;, line 187, in _multicall
+    res = hook_impl.function(*args)
+  File &quot;/home/delixus/Documents/Automation/Sc/venv_test/lib/python3.6/site-packages/_pytest/runner.py&quot;, line 131, in pytest_runtest_call
+    item.runtest()
+  File &quot;/home/delixus/Documents/Automation/Sc/venv_test/lib/python3.6/site-packages/_pytest/unittest.py&quot;, line 207, in runtest
+    self._testcase(result=self)
+  File &quot;/usr/lib/python3.6/unittest/case.py&quot;, line 653, in __call__
+    return self.run(*args, **kwds)
+  File &quot;/usr/lib/python3.6/unittest/case.py&quot;, line 605, in run
+    testMethod()
+  File &quot;/home/delixus/Downloads/New folder-20200129T110129Z-001/New folder/Sc/test/test_industrialsecurity/test_is.py&quot;, line 45, in testb_add_is_instance
+    self.isi.isi_reposelect()
+  File &quot;/home/delixus/Downloads/New folder-20200129T110129Z-001/New folder/Sc/pages/industrial_security/indutrial_security_instances.py&quot;, line 52, in isi_reposelect
+    self.elementClick(self._clickbox,locatorType=&quot;xpath&quot;)
+  File &quot;/home/delixus/Downloads/New folder-20200129T110129Z-001/New folder/Sc/base/SeleniumDriver.py&quot;, line 74, in elementClick
+    print_stack()
+<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test/test_repositories/test_repo.py::Repo::testa_add_logina</td>
+          <td class="col-duration">7.42</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> -----------------------------Captured stdout setup------------------------------ <br/>Running one time setUp
+running test on chrome file
+<br/> ------------------------------Captured stdout call------------------------------ <br/>element&lt;selenium.webdriver.remote.webelement.WebElement (session=&quot;fb950697faf1a288c3e9835525e4171a&quot;, element=&quot;0.8886201161475753-4&quot;)&gt; present after selecting
+Clicked on element with locator: //input[contains(@value,&#x27;Sign In&#x27;)] locatorType: xpath
+<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test/test_repositories/test_repo.py::Repo::testb_add_repo</td>
+          <td class="col-duration">1.48</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> ------------------------------Captured stdout call------------------------------ <br/>element&lt;selenium.webdriver.remote.webelement.WebElement (session=&quot;fb950697faf1a288c3e9835525e4171a&quot;, element=&quot;0.8886201161475753-6&quot;)&gt; present after selecting
+Clicked on element with locator: Repositories locatorType: linktext
+clicking on drowpdown
+element&lt;selenium.webdriver.remote.webelement.WebElement (session=&quot;fb950697faf1a288c3e9835525e4171a&quot;, element=&quot;0.8886201161475753-7&quot;)&gt; present after selecting
+Clicked on element with locator: //a[@href=&#x27;#repositories&#x27;] locatorType: xpath
+clicked
+element&lt;selenium.webdriver.remote.webelement.WebElement (session=&quot;fb950697faf1a288c3e9835525e4171a&quot;, element=&quot;0.8886201161475753-8&quot;)&gt; present after selecting
+Clicked on element with locator: //a[contains(@href,&#x27;#repositories/add&#x27;)]/child::span locatorType: xpath
+element&lt;selenium.webdriver.remote.webelement.WebElement (session=&quot;fb950697faf1a288c3e9835525e4171a&quot;, element=&quot;0.8886201161475753-9&quot;)&gt; present after selecting
+Clicked on element with locator: //i[@class=&#x27;icon icon-desktop&#x27;]/child::span[contains(text(),&#x27;v4&#x27;)] locatorType: xpath
+<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test/test_repositories/test_repo.py::Repo::testc_add_ipv4</td>
+          <td class="col-duration">4.44</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> ------------------------------Captured stdout call------------------------------ <br/>element&lt;selenium.webdriver.remote.webelement.WebElement (session=&quot;fb950697faf1a288c3e9835525e4171a&quot;, element=&quot;0.8886201161475753-13&quot;)&gt; present after selecting
+Clicked on element with locator: //input[@id=&#x27;trendingEnabled-input&#x27;] locatorType: xpath
+element&lt;selenium.webdriver.remote.webelement.WebElement (session=&quot;fb950697faf1a288c3e9835525e4171a&quot;, element=&quot;0.8886201161475753-13&quot;)&gt; present after selecting
+Clicked on element with locator: //input[@id=&#x27;trendingEnabled-input&#x27;] locatorType: xpath
+element&lt;selenium.webdriver.remote.webelement.WebElement (session=&quot;fb950697faf1a288c3e9835525e4171a&quot;, element=&quot;0.8886201161475753-14&quot;)&gt; present after selecting
+Clicked on element with locator: //a[@id = &#x27;form-overlay-submit&#x27;] locatorType: xpath
+<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test/test_repositories/test_repo.py::Repo::testd_add_ipv6</td>
+          <td class="col-duration">4.72</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> ------------------------------Captured stdout call------------------------------ <br/>element&lt;selenium.webdriver.remote.webelement.WebElement (session=&quot;fb950697faf1a288c3e9835525e4171a&quot;, element=&quot;0.8886201161475753-15&quot;)&gt; present after selecting
+Clicked on element with locator: //a[contains(@href,&#x27;#repositories/add&#x27;)]/child::span locatorType: xpath
+element&lt;selenium.webdriver.remote.webelement.WebElement (session=&quot;fb950697faf1a288c3e9835525e4171a&quot;, element=&quot;0.8886201161475753-16&quot;)&gt; present after selecting
+Clicked on element with locator: //i[@class=&#x27;icon icon-desktop&#x27;]/child::span[contains(text(),&#x27;v6&#x27;)] locatorType: xpath
+element&lt;selenium.webdriver.remote.webelement.WebElement (session=&quot;fb950697faf1a288c3e9835525e4171a&quot;, element=&quot;0.8886201161475753-20&quot;)&gt; present after selecting
+Clicked on element with locator: //input[@id=&#x27;trendingEnabled-input&#x27;] locatorType: xpath
+element&lt;selenium.webdriver.remote.webelement.WebElement (session=&quot;fb950697faf1a288c3e9835525e4171a&quot;, element=&quot;0.8886201161475753-20&quot;)&gt; present after selecting
+Clicked on element with locator: //input[@id=&#x27;trendingEnabled-input&#x27;] locatorType: xpath
+element&lt;selenium.webdriver.remote.webelement.WebElement (session=&quot;fb950697faf1a288c3e9835525e4171a&quot;, element=&quot;0.8886201161475753-21&quot;)&gt; present after selecting
+Clicked on element with locator: //a[@id = &#x27;form-overlay-submit&#x27;] locatorType: xpath
+<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test/test_repositories/test_repo.py::Repo::teste_add_mobile_repo_1</td>
+          <td class="col-duration">3.52</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> ------------------------------Captured stdout call------------------------------ <br/>element&lt;selenium.webdriver.remote.webelement.WebElement (session=&quot;fb950697faf1a288c3e9835525e4171a&quot;, element=&quot;0.8886201161475753-22&quot;)&gt; present after selecting
+Clicked on element with locator: //a[contains(@href,&#x27;#repositories/add&#x27;)]/child::span locatorType: xpath
+element&lt;selenium.webdriver.remote.webelement.WebElement (session=&quot;fb950697faf1a288c3e9835525e4171a&quot;, element=&quot;0.8886201161475753-23&quot;)&gt; present after selecting
+Clicked on element with locator: //i[@class=&#x27;icon icon-mobile&#x27;] locatorType: xpath
+element&lt;selenium.webdriver.remote.webelement.WebElement (session=&quot;fb950697faf1a288c3e9835525e4171a&quot;, element=&quot;0.8886201161475753-30&quot;)&gt; present after selecting
+Clicked on element with locator: //*[@id=&#x27;scanner&#x27;]/span/span[1] locatorType: xpath
+element  Centos_Nessus
+hover to element with locator: Centos_Nessus locatorType: linkText
+element&lt;selenium.webdriver.remote.webelement.WebElement (session=&quot;fb950697faf1a288c3e9835525e4171a&quot;, element=&quot;0.8886201161475753-32&quot;)&gt; present after selecting
+Clicked on element with locator: Submit locatorType: linktext
+<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test/test_repositories/test_repo.py::Repo::testf_add_agent_repo</td>
+          <td class="col-duration">1.54</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> ------------------------------Captured stdout call------------------------------ <br/>element&lt;selenium.webdriver.remote.webelement.WebElement (session=&quot;fb950697faf1a288c3e9835525e4171a&quot;, element=&quot;0.8886201161475753-6&quot;)&gt; present after selecting
+Clicked on element with locator: Repositories locatorType: linktext
+element&lt;selenium.webdriver.remote.webelement.WebElement (session=&quot;fb950697faf1a288c3e9835525e4171a&quot;, element=&quot;0.8886201161475753-7&quot;)&gt; present after selecting
+Clicked on element with locator: //a[@href=&#x27;#repositories&#x27;] locatorType: xpath
+element&lt;selenium.webdriver.remote.webelement.WebElement (session=&quot;fb950697faf1a288c3e9835525e4171a&quot;, element=&quot;0.8886201161475753-33&quot;)&gt; present after selecting
+Clicked on element with locator: //a[contains(@href,&#x27;#repositories/add&#x27;)]/child::span locatorType: xpath
+agent repo added first
+element&lt;selenium.webdriver.remote.webelement.WebElement (session=&quot;fb950697faf1a288c3e9835525e4171a&quot;, element=&quot;0.8886201161475753-37&quot;)&gt; present after selecting
+Clicked on element with locator: //a[@id = &#x27;form-overlay-submit&#x27;] locatorType: xpath
+<br/></div></td></tr></tbody></table></body></html>

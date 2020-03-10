@@ -1,0 +1,12 @@
+[
+  "test_scan_zone.py::Login::testa_method",
+  "test_scan_zone.py::Login::testb_add_scanzone_1",
+  "test_scan_zone.py::Login::testb_add_scanzone_2",
+  "test_scan_zone.py::Login::testb_add_scanzone_3",
+  "test_scan_zone.py::Login::testb_add_scanzone_both_WindowsAndNessus_1",
+  "test_scan_zone.py::Login::testb_add_scanzone_both_WindowsAndNessus_2",
+  "test_scan_zone.py::Login::testc_add_scanzone_1",
+  "test_scan_zone.py::Login::testc_add_scanzone_2",
+  "test_scan_zone.py::Login::testc_add_scanzone_3",
+  "test_scan_zone.py::Login::testd_add_scanzone_both_WindowsAndCentos_1"
+]

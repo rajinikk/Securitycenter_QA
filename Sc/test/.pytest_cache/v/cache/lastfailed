@@ -1,0 +1,12 @@
+{
+  "test_add_nessus_scanner/test_add_nessus_scanner.py::Repo": true,
+  "test_add_nessus_scanner/test_add_nessus_scanner.py::Repo::test_methodc_1___Centos_Nessus____Centos_based_nessus__": true,
+  "test_add_org/test_add_org.py::Repo::testb_add_org": true,
+  "test_add_org/test_add_org.py::Repo::testb_add_org_2": true,
+  "test_add_scanzone/test_scan_zone.py::Login::test_add_scanzone_1": true,
+  "test_add_scanzone/test_scan_zone.py::Login::test_add_scanzone_2": true,
+  "test_add_scanzone/test_scan_zone.py::Login::test_methoda": true,
+  "test_add_scanzone/test_scan_zone.py::Login::test_methodb": true,
+  "test_login_page/test_login.py::Login::test_methodE": true,
+  "test_repositories/test_repo.py::Repo::teste_repo_add_mobile_1": true
+}

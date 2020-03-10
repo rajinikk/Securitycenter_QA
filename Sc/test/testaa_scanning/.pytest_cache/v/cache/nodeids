@@ -1,0 +1,9 @@
+[
+  "test_scanning_ssh_password.py::test::testa_add_logina",
+  "test_scanning_ssh_password.py::test::testb_add_ssh_password",
+  "test_scanning_ssh_password.py::test::testb_add_ssh_password_1",
+  "test_scanning_passwords.py::test::testa_add_logina",
+  "test_scanning_passwords.py::test::testc_add_windows_password_1",
+  "test_scanning.py::test::testa_add_logina",
+  "test_scanning.py::test::testd_scanning_method_1"
+]

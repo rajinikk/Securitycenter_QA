@@ -1,0 +1,5 @@
+[
+  "test_user.py::test::testa_add_logina",
+  "test_user.py::test::testb_add_user_1",
+  "test_user.py::test::testb_add_user"
+]

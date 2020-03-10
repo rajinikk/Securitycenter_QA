@@ -1,0 +1,15 @@
+01/26/2020 02:22:45 AM - SeleniumDriver - INFO: Element found with locator: //input[@id='username'] and locatorType: xpath
+01/26/2020 02:22:45 AM - SeleniumDriver - INFO: Element found with locator: //input[@id='password'] and locatorType: xpath
+01/26/2020 02:22:49 AM - SeleniumDriver - INFO: Element found with locator: //input[contains(@value,'Sign In')] and locatorType: xpath
+01/26/2020 02:22:49 AM - SeleniumDriver - INFO: clicked on element with locator: //input[contains(@value,'Sign In')] locatorType: xpath
+01/26/2020 02:22:50 AM - SeleniumDriver - INFO: Element found with locator: //a[contains(text(),'Dashboard')] and locatorType: xpath
+01/26/2020 02:22:52 AM - SeleniumDriver - INFO: Element found with locator: //a[@href='#organizations'] and locatorType: xpath
+01/26/2020 02:22:58 AM - SeleniumDriver - INFO: clicked on element with locator: //a[@href='#organizations'] locatorType: xpath
+01/26/2020 02:22:58 AM - SeleniumDriver - INFO: Element found with locator: //a[@href='#organizations/add'] and locatorType: xpath
+01/26/2020 02:23:03 AM - SeleniumDriver - INFO: clicked on element with locator: //a[@href='#organizations/add'] locatorType: xpath
+01/26/2020 02:23:05 AM - SeleniumDriver - INFO: Element found with locator: //input[@id='name-input'] and locatorType: xpath
+01/26/2020 02:23:05 AM - SeleniumDriver - INFO: Element found with locator: //textarea[@id='description-textarea'] and locatorType: xpath
+01/26/2020 02:23:08 AM - SeleniumDriver - INFO: Element found with locator: //*[@id='distributionMethod']/span/div/span[@data-toggle='dropdown'] and locatorType: xpath
+01/26/2020 02:23:08 AM - SeleniumDriver - INFO: clicked on element with locator: //*[@id='distributionMethod']/span/div/span[@data-toggle='dropdown'] locatorType: xpath
+01/26/2020 02:23:08 AM - SeleniumDriver - INFO: Element found with locator: //*[@id="distributionMethod"]/li[3]/a[contains(text(),"Selectable Zones")] and locatorType: xpath
+01/26/2020 02:23:11 AM - SeleniumDriver - INFO: hover to element with locator: //*[@id="distributionMethod"]/li[3]/a[contains(text(),"Selectable Zones")] locatorType: xpath
